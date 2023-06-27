@@ -1,0 +1,30 @@
+definitions:
+  steps:
+    - step: &delivery
+        name: Delivery and deploy
+        script:
+          - ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "cd $REPO && git checkout $BRANCH && git restore package-lock.json $RESTORE_FILE || echo no_restore"
+          - ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "cd $REPO && git pull"
+          - ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "cd $REPO && npm install"
+          - ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "cd $REPO && NODE_ENV=$ENV npm run build"
+          - ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "pm2 delete back || echo back_doesnt_exist"
+          - ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "cd $REPO && pm2 start --name back npm -- start"
+          - ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "sleep 10 && pm2 save"
+pipelines:
+  branches:
+    dev:
+      - step:
+            deployment: Development
+            <<: *delivery
+    stage:
+      - step:
+            deployment: Staging
+            <<: *delivery
+    release:
+      - step:
+            script: 
+              - echo "Prod build start"
+      - step:
+            trigger: 'manual'
+            deployment: Production
+            <<: *delivery

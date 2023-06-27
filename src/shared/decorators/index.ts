@@ -1,0 +1,1 @@
+export { IntIdParam } from './param';
